@@ -19,4 +19,4 @@ services:
     # volumes:
     #   - .:/app
     #   - /app/node_modules
-    command: ["node", "index.js"]
+    command: ["node", "server.js"]
