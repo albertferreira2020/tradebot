@@ -4,5 +4,5 @@ COPY package*.json yarn.lock ./
 RUN yarn install --silent
 COPY . .
 RUN ls -la
-EXPOSE 5279
+EXPOSE 5007
 CMD ["yarn", "start"]
