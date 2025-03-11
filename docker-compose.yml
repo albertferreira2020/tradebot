@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5007:3000"
+    environment:
+      - PORT=3000
+      - BINANCE_API_KEY=${BINANCE_API_KEY}
+      - BINANCE_API_SECRET=${BINANCE_API_SECRET}
+      - DB_USER=${DB_USER}
+      - DB_HOST=${DB_HOST}
+      - DB_NAME=${DB_NAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_PORT={DB_PORT}
+      - CHART_TIMEFRAME=${CHART_TIMEFRAME}
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    restart: unless-stopped
