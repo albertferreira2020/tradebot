@@ -1,7 +1,7 @@
 services:
   node_server:
     build: .
-    container_name: node_server
+    container_name: node_server_tradebot
     restart: always
     # env_file:
     #   - .env
