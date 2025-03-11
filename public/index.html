@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitcoin Dashboard Avançado</title>
+    <script
+        src="https://cdn.jsdelivr.net/npm/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-template-rows: auto;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        @media (min-width: 1200px) {
+            .dashboard {
+                grid-template-columns: 3fr 1fr;
+            }
+        }
+
+        .card {
+            background-color: #1e1e1e;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 15px;
+            border-bottom: 1px solid #333;
+        }
+
+        .card-title {
+            margin: 0;
+            font-size: 18px;
+            font-weight: bold;
+            color: #e0e0e0;
+        }
+
+        .card-content {
+            padding: 15px;
+        }
+
+        .chart-container {
+            grid-column: 1 / -1;
+            height: 400px;
+        }
+
+        .price-info {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            padding: 15px;
+        }
+
+        .price-box {
+            text-align: center;
+            flex: 1;
+            min-width: 120px;
+            margin: 5px;
+        }
+
+        .price-label {
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .price-value {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 5px;
+            color: #e0e0e0;
+        }
+
+        .order-book {
+            height: 400px;
+        }
+
+        .order-book-container {
+            display: flex;
+            gap: 10px;
+            height: 350px;
+        }
+
+        .bids,
+        .asks {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .bids-title,
+        .asks-title {
+            text-align: center;
+            padding: 5px;
+            font-weight: bold;
+        }
+
+        .bids-title {
+            color: #4CAF50;
+        }
+
+        .asks-title {
+            color: #F44336;
+        }
+
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 8px;
+            border-bottom: 1px solid #333;
+            font-size: 14px;
+        }
+
+        .bid-item {
+            color: #4CAF50;
+        }
+
+        .ask-item {
+            color: #F44336;
+        }
+
+        .active-traders {
+            max-height: 400px;
+        }
+
+        .trader-list {
+            max-height: 330px;
+            overflow-y: auto;
+        }
+
+        .trader-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            border-bottom: 1px solid #333;
+            font-size: 14px;
+        }
+
+        .trader-item:hover {
+            background-color: #252525;
+        }
+
+        .trader-id {
+            font-weight: bold;
+        }
+
+        .trader-buy {
+            color: #4CAF50;
+        }
+
+        .trader-sell {
+            color: #F44336;
+        }
+
+        .activity-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #4CAF50;
+            display: inline-block;
+            margin-right: 5px;
+        }
+
+        .fear-greed-container {
+            height: 300px;
+        }
+
+        .fear-greed-info {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+
+        .fear-greed-meter {
+            width: 150px;
+            height: 150px;
+            position: relative;
+            margin: 0 auto;
+        }
+
+        .fear-greed-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 32px;
+            font-weight: bold;
+            color: #e0e0e0;
+        }
+
+        .fear-greed-label {
+            text-align: center;
+            font-size: 16px;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .fear-greed-chart {
+            height: 200px;
+        }
+
+        .extreme-fear {
+            color: #FF3B30;
+        }
+
+        .fear {
+            color: #FF9500;
+        }
+
+        .neutral {
+            color: #FFCC00;
+        }
+
+        .greed {
+            color: #34C759;
+        }
+
+        .extreme-greed {
+            color: #007AFF;
+        }
+
+        .trades-container {
+            max-height: 400px;
+        }
+
+        .trades-list {
+            max-height: 330px;
+            overflow-y: auto;
+        }
+
+        .trade-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            border-bottom: 1px solid #333;
+            font-size: 14px;
+        }
+
+        .trade-buy {
+            color: #4CAF50;
+        }
+
+        .trade-sell {
+            color: #F44336;
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        /* Estilos de scrollbar personalizados para o tema escuro */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #2a2a2a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #777;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h1>Bitcoin (BTC/USDT) Dashboard Avançado</h1>
+        </div>
+
+        <!-- Informações de preço -->
+        <div class="card price-info">
+            <div class="price-box">
+                <div class="price-label">Último Preço</div>
+                <div class="price-value" id="last-price">--</div>
+            </div>
+            <div class="price-box">
+                <div class="price-label">Variação 24h</div>
+                <div class="price-value" id="price-change">--</div>
+            </div>
+            <div class="price-box">
+                <div class="price-label">Máxima 24h</div>
+                <div class="price-value" id="high-price">--</div>
+            </div>
+            <div class="price-box">
+                <div class="price-label">Mínima 24h</div>
+                <div class="price-value" id="low-price">--</div>
+            </div>
+            <div class="price-box">
+                <div class="price-label">Volume 24h</div>
+                <div class="price-value" id="volume">--</div>
+            </div>
+        </div>
+
+        <!-- Gráfico principal -->
+        <div class="card chart-container">
+            <div class="card-header">
+                <h2 class="card-title">Gráfico de Candlestick</h2>
+            </div>
+            <div class="card-content" id="chart" style="height: 350px;"></div>
+        </div>
+
+        <!-- Book de Ofertas -->
+        <div class="card order-book">
+            <div class="card-header">
+                <h2 class="card-title">Book de Ofertas</h2>
+            </div>
+            <div class="card-content">
+                <div class="order-book-container">
+                    <div class="bids">
+                        <div class="bids-title">Compra</div>
+                        <div id="bids-container"></div>
+                    </div>
+                    <div class="asks">
+                        <div class="asks-title">Venda</div>
+                        <div id="asks-container"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Traders Ativos -->
+        <div class="card active-traders">
+            <div class="card-header">
+                <h2 class="card-title">Traders Ativos</h2>
+            </div>
+            <div class="card-content">
+                <div class="trader-list" id="active-traders-list">
+                    <div class="trader-item">Carregando traders ativos...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Índice de Medo e Ganância -->
+        <div class="card fear-greed-container">
+            <div class="card-header">
+                <h2 class="card-title">Índice de Medo e Ganância</h2>
+            </div>
+            <div class="card-content">
+                <div class="fear-greed-info">
+                    <div class="fear-greed-meter">
+                        <canvas id="fear-greed-gauge" width="150" height="150"></canvas>
+                        <div class="fear-greed-value" id="fear-greed-value">--</div>
+                    </div>
+                </div>
+                <div class="fear-greed-label" id="fear-greed-label">--</div>
+                <div class="fear-greed-chart" id="fear-greed-chart"></div>
+            </div>
+        </div>
+
+        <!-- Negociações Recentes -->
+        <div class="card trades-container">
+            <div class="card-header">
+                <h2 class="card-title">Negociações Recentes</h2>
+            </div>
+            <div class="card-content">
+                <div class="trades-list" id="recent-trades-list">
+                    <div class="trade-item">Carregando negociações recentes...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Conectar ao Socket.io com arrow function
+        const socket = io();
+
+        // Variáveis para armazenar os dados atuais
+        let currentCandle = null;
+        let lastOrderBook = null;
+
+        // Configurar gráfico de candlestick com tema escuro
+        const chartContainer = document.getElementById('chart');
+        const chart = LightweightCharts.createChart(chartContainer, {
+            width: chartContainer.clientWidth,
+            height: chartContainer.clientHeight,
+            layout: {
+                backgroundColor: '#1e1e1e',
+                textColor: '#d1d4dc'
+            },
+            grid: {
+                vertLines: { color: '#2e2e2e' },
+                horzLines: { color: '#2e2e2e' },
+            },
+            crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+            priceScale: { borderColor: '#4a4a4a' },
+            timeScale: {
+                borderColor: '#4a4a4a',
+                timeVisible: true,
+                secondsVisible: false
+            },
+        });
+        const candleSeries = chart.addCandlestickSeries({
+            upColor: '#4CAF50',
+            downColor: '#F44336',
+            borderDownColor: '#F44336',
+            borderUpColor: '#4CAF50',
+            wickDownColor: '#F44336',
+            wickUpColor: '#4CAF50',
+        });
+
+        // Configurar gráfico do índice de medo e ganância com tema escuro
+        const fearGreedContainer = document.getElementById('fear-greed-chart');
+        const fearGreedChart = LightweightCharts.createChart(fearGreedContainer, {
+            width: fearGreedContainer.clientWidth,
+            height: fearGreedContainer.clientHeight,
+            layout: {
+                backgroundColor: '#1e1e1e',
+                textColor: '#d1d4dc'
+            },
+            grid: {
+                vertLines: { color: '#2e2e2e' },
+                horzLines: { color: '#2e2e2e' },
+            },
+            timeScale: {
+                timeVisible: true,
+                borderColor: '#4a4a4a'
+            },
+        });
+        const fearGreedSeries = fearGreedChart.addAreaSeries({
+            topColor: 'rgba(76, 175, 80, 0.4)',
+            bottomColor: 'rgba(76, 175, 80, 0.0)',
+            lineColor: 'rgba(76, 175, 80, 1)',
+            lineWidth: 2,
+        });
+
+        // Função para desenhar o gauge do índice de medo e ganância
+        const drawFearGreedGauge = value => {
+            const canvas = document.getElementById('fear-greed-gauge');
+            const ctx = canvas.getContext('2d');
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = canvas.width / 2 - 10;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, Math.PI, 2 * Math.PI, false);
+            ctx.lineWidth = 20;
+            ctx.strokeStyle = '#333333';
+            ctx.stroke();
+
+            let gradientColor;
+            if (value < 25) gradientColor = '#FF3B30';
+            else if (value < 45) gradientColor = '#FF9500';
+            else if (value < 55) gradientColor = '#FFCC00';
+            else if (value < 75) gradientColor = '#34C759';
+            else gradientColor = '#007AFF';
+
+            const valueAngle = (value / 100) * Math.PI + Math.PI;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, Math.PI, valueAngle, false);
+            ctx.lineWidth = 20;
+            ctx.strokeStyle = gradientColor;
+            ctx.stroke();
+
+            document.getElementById('fear-greed-value').textContent = value;
+            let classification, classColor;
+            if (value < 25) { classification = 'Medo Extremo'; classColor = 'extreme-fear'; }
+            else if (value < 45) { classification = 'Medo'; classColor = 'fear'; }
+            else if (value < 55) { classification = 'Neutro'; classColor = 'neutral'; }
+            else if (value < 75) { classification = 'Ganância'; classColor = 'greed'; }
+            else { classification = 'Ganância Extrema'; classColor = 'extreme-greed'; }
+            const labelEl = document.getElementById('fear-greed-label');
+            labelEl.textContent = classification;
+            labelEl.className = 'fear-greed-label ' + classColor;
+        };
+
+        // Função para atualizar o book de ofertas
+        const updateOrderBook = orderBook => {
+            lastOrderBook = orderBook;
+            const bidsContainer = document.getElementById('bids-container');
+            const asksContainer = document.getElementById('asks-container');
+            bidsContainer.innerHTML = '';
+            asksContainer.innerHTML = '';
+
+            const sortedBids = orderBook.bids.sort((a, b) => b.price - a.price);
+            const sortedAsks = orderBook.asks.sort((a, b) => a.price - b.price);
+
+            sortedBids.forEach(bid => {
+                const bidDiv = document.createElement('div');
+                bidDiv.className = 'order-item bid-item';
+                bidDiv.innerHTML = `<span>${bid.price.toFixed(2)}</span><span>${bid.quantity.toFixed(6)}</span>`;
+                bidsContainer.appendChild(bidDiv);
+            });
+
+            sortedAsks.forEach(ask => {
+                const askDiv = document.createElement('div');
+                askDiv.className = 'order-item ask-item';
+                askDiv.innerHTML = `<span>${ask.price.toFixed(2)}</span><span>${ask.quantity.toFixed(6)}</span>`;
+                asksContainer.appendChild(askDiv);
+            });
+
+            if (sortedBids.length > 0 && sortedAsks.length > 0) {
+                const lastPrice = (sortedBids[0].price + sortedAsks[0].price) / 2;
+                document.getElementById('last-price').textContent = lastPrice.toFixed(2) + ' USDT';
+            }
+        };
+
+        // Função para atualizar a lista de traders ativos
+        const updateActiveTraders = traders => {
+            const tradersContainer = document.getElementById('active-traders-list');
+            tradersContainer.innerHTML = '';
+            if (traders.length === 0) {
+                tradersContainer.innerHTML = '<div class="trader-item">Nenhum trader ativo no momento.</div>';
+                return;
+            }
+            const sortedTraders = traders.sort((a, b) => b.lastActive - a.lastActive);
+            sortedTraders.forEach(trader => {
+                const traderDiv = document.createElement('div');
+                traderDiv.className = 'trader-item';
+                const tradeDirection = trader.isBuyer ? 'trader-buy' : 'trader-sell';
+                const action = trader.isBuyer ? 'Compra' : 'Venda';
+                const timeAgo = Math.floor((Date.now() - trader.lastActive) / 1000);
+                const timeDisplay = timeAgo < 5 ? 'agora' : (timeAgo < 60 ? `${timeAgo}s atrás` : `${Math.floor(timeAgo / 60)}m atrás`);
+                traderDiv.innerHTML = `<div>
+            <span class="activity-indicator"></span>
+            <span class="trader-id">${trader.id}</span>
+          </div>
+          <div class="${tradeDirection}">${action}: ${trader.quantity.toFixed(5)} BTC @ ${trader.lastPrice.toFixed(2)} USDT</div>
+          <div>${timeDisplay}</div>`;
+                tradersContainer.appendChild(traderDiv);
+            });
+        };
+
+        // Listeners dos eventos do Socket.io
+
+        // Ticker 24h
+        socket.on('ticker_24h', data => {
+            document.getElementById('last-price').textContent = data.lastPrice.toFixed(2) + ' USDT';
+            document.getElementById('price-change').textContent = data.priceChange.toFixed(2) + ' (' + data.priceChangePercent.toFixed(2) + '%)';
+            document.getElementById('high-price').textContent = data.highPrice.toFixed(2) + ' USDT';
+            document.getElementById('low-price').textContent = data.lowPrice.toFixed(2) + ' USDT';
+            document.getElementById('volume').textContent = data.volume.toFixed(2);
+        });
+
+        // Dados históricos e inicialização do candle atual
+        socket.on('historical_data', data => {
+            const formatted = data.map(candle => {
+                currentCandle = candle;
+                return {
+                    time: candle.time,
+                    open: candle.open,
+                    high: candle.high,
+                    low: candle.low,
+                    close: candle.close,
+                };
+            });
+            candleSeries.setData(formatted);
+        });
+
+        // Atualização do candle via kline (quando houver update da Binance)
+        socket.on('candle_update', data => {
+            currentCandle = data;
+            candleSeries.update({
+                time: data.time,
+                open: data.open,
+                high: data.high,
+                low: data.low,
+                close: data.close,
+            });
+        });
+
+        // Utilizando os eventos de trade para atualizar o candle em tempo real
+        socket.on('trade', trade => {
+            if (currentCandle) {
+                // Converter tempo do trade para segundos
+                const tradeTime = Math.floor(trade.time / 1000);
+                // Verificar se o trade ocorre no mesmo minuto do candle atual
+                if (Math.floor(currentCandle.time / 60) === Math.floor(tradeTime / 60)) {
+                    currentCandle.close = trade.price;
+                    if (trade.price > currentCandle.high) currentCandle.high = trade.price;
+                    if (trade.price < currentCandle.low) currentCandle.low = trade.price;
+                    candleSeries.update(currentCandle);
+                }
+            }
+        });
+
+        // Atualização do book de ofertas
+        socket.on('order_book', data => updateOrderBook(data));
+        socket.on('depth_update', data => updateOrderBook(data));
+
+        // Forçar re-render do book de ofertas a cada 1 segundo (usando o último valor recebido)
+        setInterval(() => {
+            if (lastOrderBook) updateOrderBook(lastOrderBook);
+        }, 1000);
+
+        // Negociações recentes
+        socket.on('recent_trades', data => {
+            const tradesContainer = document.getElementById('recent-trades-list');
+            tradesContainer.innerHTML = '';
+            if (data.length === 0) {
+                tradesContainer.innerHTML = '<div class="trade-item">Nenhuma negociação recente.</div>';
+                return;
+            }
+            data.forEach(trade => {
+                const tradeDiv = document.createElement('div');
+                tradeDiv.className = 'trade-item ' + (trade.isBuyer ? 'trade-buy' : 'trade-sell');
+                tradeDiv.innerHTML = `<span>${trade.trader}</span><span>${trade.quantity.toFixed(6)} BTC</span><span>${trade.price.toFixed(2)} USDT</span>`;
+                tradesContainer.appendChild(tradeDiv);
+            });
+        });
+
+        // Índice de medo e ganância
+        socket.on('fear_and_greed_data', data => {
+            if (data && data.length > 0) {
+                const lastValue = data[data.length - 1].value;
+                drawFearGreedGauge(lastValue);
+                fearGreedSeries.setData(data.map(item => ({
+                    time: Math.floor(item.timestamp / 1000),
+                    value: item.value
+                })));
+            }
+        });
+
+        // Traders ativos
+        socket.on('active_traders', data => updateActiveTraders(data));
+
+        window.addEventListener('resize', () => {
+                chart.resize(chartContainer.clientWidth, chartContainer.clientHeight);
+                fearGreedChart.resize(fearGreedContainer.clientWidth, fearGreedContainer.clientHeight);
+            });
+    </script>
+</body>
+
+</html>
