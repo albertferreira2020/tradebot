@@ -1,8 +1,7 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: node:18
+    working_dir: /app
     ports:
       - "5007:3000"
     environment:
